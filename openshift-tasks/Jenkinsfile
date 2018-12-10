@@ -32,10 +32,10 @@ podTemplate(
       // Extract version from the pom.xml
       def version = getVersionFromPom("pom.xml")
 
-      // TBD Set the tag for the development image: version + build number
-      def devTag  = ""
+      // Set the tag for the development image: version + build number
+      def devTag  = "${version}-${BUILD_NUMBER}"
       // Set the tag for the production image: version
-      def prodTag = ""
+      def prodTag = "${version}"
 
       // Using Maven build the war file
       // Do not run tests in this step
@@ -43,6 +43,8 @@ podTemplate(
         echo "Building version ${devTag}"
 
         // TBD: Execute Maven Build
+        echo "Building version ${devTag}"
+        sh "${mvnCmd} clean package -DskipTests"
       }
 
       // TBD: The next two stages should run in parallel
@@ -52,6 +54,7 @@ podTemplate(
         echo "Running Unit Tests"
 
         // TBD: Execute Unit Tests
+        sh "${mvnCmd} test"
       }
 
       // Using Maven to call SonarQube for Code Analysis
@@ -59,6 +62,7 @@ podTemplate(
         echo "Running Code Analysis"
 
         // TBD: Execute Sonarqube Tests
+        sh "${mvnCmd} sonar:sonar -Dsonar.host.url=http://sonarqube.gpte-hw-cicd.svc.cluster.local:9000/ -Dsonar.projectName=${JOB_BASE_NAME}-${devTag}"
       }
 
       // Publish the built war file to Nexus
@@ -66,6 +70,7 @@ podTemplate(
         echo "Publish to Nexus"
 
         // TBD: Publish to Nexus
+        sh "${mvnCmd} deploy -DskipTests=true -DaltDeploymentRepository=nexus::default::http://nexus3.gpte-hw-cicd.svc.cluster.local:8081/repository/all-maven-public"  }
       }
 
       // Build the OpenShift Image in OpenShift and tag it.
@@ -73,6 +78,11 @@ podTemplate(
         echo "Building OpenShift container image tasks:${devTag}"
 
         // TBD: Build Image, tag Image
+        //   Local build output here /tmp/workspace/Tasks/target/openshift-tasks.war
+        // note the output is project scoped afg-tasks-dev
+        sh "oc start-build tasks --follow --from-file=./target/openshift-tasks.war -n ${GUID}-tasks-dev"
+
+        openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'tasks', destTag: devTag, destinationAuthToken: '', destinationNamespace: '${GUID}-tasks-dev', namespace: '${GUID}-tasks-dev', srcStream: 'tasks', srcTag: 'latest', verbose: 'false'
       }
 
       // Deploy the built image to the Development Environment.
@@ -82,6 +92,7 @@ podTemplate(
         // TBD: Deploy to development Project
         //      Set Image, Set VERSION
         //      Make sure the application is running and ready before proceeding
+        sh "oc set image dc/tasks tasks=docker-registry.default.svc:5000/${GUID}-tasks-dev/tasks:${devTag} -n ${GUID}-tasks-dev"
       }
 
       // Copy Image to Nexus container registry
@@ -89,7 +100,9 @@ podTemplate(
         echo "Copy image to Nexus container registry"
 
         // TBD: Copy image to Nexus container registry
+        sh "skopeo copy --dest-tls-verify=false --src-tls-verify=false --src-creds openshift:\$(oc whoami -t) --dest-creds gpte:redhat docker://docker-registry.default.svc.cluster.local:5000/${GUID}-tasks-dev/tasks:${devTag} docker://nexus3.gpte-hw-cicd.svc.cluster.local:8081/tasks:${devTag}"
 
+        openshiftTag alias: 'false', destStream: 'tasks', destTag: prodTag, destinationNamespace: '${GUID}-tasks-dev', namespace: '${GUID}-tasks-dev', srcStream: 'tasks', srcTag: devTag, verbose: 'false'
         // TBD: Tag the built image with the production tag.
       }
 
