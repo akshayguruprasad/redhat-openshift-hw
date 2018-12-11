@@ -176,8 +176,7 @@ podTemplate(
         // Replace xyz-tasks-prod with the name of your production project
         sh 'oc patch route tasks -n ${GUID}-tasks-prod -p \'{"spec":{"to":{"name":"' + destApp + '"}}}\''
       }
-
-
+    }
   }
 }
 
