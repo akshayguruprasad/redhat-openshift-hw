@@ -20,6 +20,8 @@
 
   <groupId>org.jboss.quickstarts.eap</groupId>
   <artifactId>tasks</artifactId>
+
+<!-- for the purpose of this exercise up the version number so it can be distingusihed when debugging the docker registry-->
   <version>5.0</version>
   <packaging>war</packaging>
   <name>JBoss EAP - Tasks App</name>
