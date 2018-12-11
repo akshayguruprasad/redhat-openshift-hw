@@ -159,6 +159,8 @@ podTemplate(
         sh "oc delete configmap ${destApp}-config -n ${GUID}-tasks-prod --ignore-not-found=true"
         sh "oc create configmap ${destApp}-config --from-file=./configuration/application-users.properties --from-file=./configuration/application-roles.properties -n ${GUID}-tasks-prod"
 
+        sh "oc set env dc/${destApp} VERSION='${prodTag} (${destApp})' -n ${GUID}-tasks-prod"
+
         echo "Deploy app into prod"
         // Deploy the inactive application.
         openshiftDeploy depCfg: destApp, namespace: '${GUID}-tasks-prod', verbose: 'false', waitTime: '', waitUnit: 'sec'
